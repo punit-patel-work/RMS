@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Enums
+enum Role {
+  OWNER
+  SUPERVISOR
+  FLOOR_STAFF
+  KITCHEN_STAFF
+}
+
+enum TableStatus {
+  VACANT
+  OCCUPIED
+  RESERVED
+  ORDER_PENDING
+}
+
+enum OrderStatus {
+  CREATED
+  PREPARING
+  READY
+  SERVED
+  PAID
+  CANCELLED
+}
+
+enum OrderItemStatus {
+  PENDING
+  PREPARING
+  READY
+  SERVED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+}
+
+// Models
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  phone     String?  // Optional phone number
+  role      Role
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  orders    Order[]  @relation("CreatedBy")
+  promotionsCreated Promotion[] @relation("PromotionCreatedBy")
+
+  @@map("users")
+}
+
+model Category {
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  order       Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  
+  // Relations
+  menuItems   MenuItem[]
+
+  @@map("categories")
+}
+
+model Allergy {
+  id    String @id @default(cuid())
+  name  String @unique
+  badge String // Color or icon identifier
+
+  @@map("allergies")
+}
+
+model MenuItem {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  price         Float
+  image         String?
+  available     Boolean  @default(true)
+  isSpecial     Boolean  @default(false)  // Chef's special
+  isPromotional Boolean  @default(false)  // On promotion/discount
+  isFeatured    Boolean  @default(false)  // Featured item for staff suggestions
+  promotionalPrice Float?                 // Discounted price if promotional
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  categoryId  String
+  category    Category    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  allergies   String[]    // Array of allergy IDs
+  orderItems  OrderItem[]
+  promotions  Promotion[]
+
+  @@map("menu_items")
+}
+
+model Table {
+  id           String      @id @default(cuid())
+  number       Int         @unique
+  capacity     Int         @default(4)
+  status       TableStatus @default(VACANT)
+  mergedWithId String?     // ID of table this is merged with
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  
+  // Self-relation for merged tables
+  mergedWith   Table?      @relation("MergedTables", fields: [mergedWithId], references: [id])
+  mergedTables Table[]     @relation("MergedTables")
+  
+  // Relations
+  orders       Order[]
+
+  @@map("tables")
+}
+
+model Order {
+  id            String       @id @default(cuid())
+  orderNumber   Int          @default(autoincrement())
+  status        OrderStatus  @default(CREATED)
+  notes         String?
+  totalAmount   Float        @default(0)
+  discountType  String?      // 'PERCENTAGE' or 'FIXED'
+  discountValue Float?       // Discount amount or percentage
+  discountReason String?     // Reason for discount
+  discountAppliedBy String?  // User ID who applied discount
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  
+  // Relations
+  tableId     String
+  table       Table        @relation(fields: [tableId], references: [id])
+  createdById String
+  createdBy   User         @relation("CreatedBy", fields: [createdById], references: [id])
+  items       OrderItem[]
+  payment     Payment?
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String          @id @default(cuid())
+  quantity   Int             @default(1)
+  notes      String?         // Special notes like "No ice"
+  allergies  String[]        // Selected allergy badges for this item
+  status     OrderItemStatus @default(PENDING)
+  price      Float           // Price at time of order
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  
+  // Relations
+  orderId    String
+  order      Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId String
+  menuItem   MenuItem        @relation(fields: [menuItemId], references: [id])
+
+  @@map("order_items")
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  amount    Float
+  method    PaymentMethod
+  createdAt DateTime      @default(now())
+  
+  // Relations
+  orderId   String        @unique
+  order     Order         @relation(fields: [orderId], references: [id])
+
+  @@map("payments")
+}
+
+model DailySummary {
+  id           String   @id @default(cuid())
+  date         DateTime @unique @db.Date
+  totalSales   Float
+  totalOrders  Int
+  emailSent    Boolean  @default(false)
+  emailSentAt  DateTime?
+  createdAt    DateTime @default(now())
+
+  @@map("daily_summaries")
+}
+
+// Promotion types: PERCENTAGE, FIXED, BUNDLE (meal deals)
+model Promotion {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  type        String   // 'PERCENTAGE', 'FIXED', 'BUNDLE'
+  value       Float    // Discount value (% or $ amount)
+  bundlePrice Float?   // Fixed price for bundle deals
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations - can link to multiple menu items for bundles
+  menuItems   MenuItem[]
+  createdById String
+  createdBy   User     @relation("PromotionCreatedBy", fields: [createdById], references: [id])
+
+  @@map("promotions")
+}
+
