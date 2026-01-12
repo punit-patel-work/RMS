@@ -74,7 +74,7 @@ export async function POST(request: Request) {
 
         // Calculate total
         const totalAmount = items.reduce((sum: number, item: { menuItemId: string; quantity: number }) => {
-            const price = menuItemPrices.get(item.menuItemId) || 0;
+            const price: number = menuItemPrices.get(item.menuItemId) || 0;
             return sum + price * item.quantity;
         }, 0);
 
