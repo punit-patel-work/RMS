@@ -107,7 +107,7 @@ export async function PUT(
 
         if (menuItemIds !== undefined) {
             // Clear promotional status from previously linked items that are no longer in the promotion
-            const previousItemIds = currentPromotion?.menuItems.map(m => m.id) || [];
+            const previousItemIds = currentPromotion?.menuItems.map((m: { id: string }) => m.id) || [];
             const removedItemIds = previousItemIds.filter(prevId => !menuItemIds.includes(prevId));
 
             if (removedItemIds.length > 0) {
@@ -181,7 +181,7 @@ export async function DELETE(
         if (promotion && promotion.menuItems.length > 0) {
             // Clear promotional status from menu items
             await prisma.menuItem.updateMany({
-                where: { id: { in: promotion.menuItems.map(m => m.id) } },
+                where: { id: { in: promotion.menuItems.map((m: { id: string }) => m.id) } },
                 data: { isPromotional: false, promotionalPrice: null },
             });
         }
