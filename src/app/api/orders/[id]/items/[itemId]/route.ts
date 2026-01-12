@@ -44,7 +44,7 @@ export async function PUT(
         });
 
         if (order) {
-            const allReady = order.items.every((item) => item.status === 'READY');
+            const allReady = order.items.every((item: { status: string }) => item.status === 'READY');
             if (allReady && order.status === 'PREPARING') {
                 await prisma.order.update({
                     where: { id: order.id },
@@ -102,7 +102,7 @@ export async function DELETE(
 
         if (order) {
             const newTotal = order.items.reduce(
-                (sum: number, item: { price: number; quantity: number }) => sum + item.price * item.quantity,
+                (sum, item: { price: number; quantity: number }) => sum + item.price * item.quantity,
                 0
             );
             await prisma.order.update({
