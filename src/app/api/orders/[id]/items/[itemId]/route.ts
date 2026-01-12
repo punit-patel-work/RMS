@@ -102,7 +102,7 @@ export async function DELETE(
 
         if (order) {
             const newTotal = order.items.reduce(
-                (sum, item: { price: number; quantity: number }) => sum + item.price * item.quantity,
+                (sum: number, item: { price: number; quantity: number }) => sum + item.price * item.quantity,
                 0
             );
             await prisma.order.update({
