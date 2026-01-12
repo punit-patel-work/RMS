@@ -115,7 +115,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <div className="mt-6 p-4 bg-slate-700/30 rounded-lg border border-slate-600/50">
+          {/* <div className="mt-6 p-4 bg-slate-700/30 rounded-lg border border-slate-600/50">
             <p className="text-xs text-slate-400 text-center mb-2">Demo Accounts</p>
             <div className="space-y-1 text-xs text-slate-500">
               <p>
@@ -132,7 +132,7 @@ export default function LoginPage() {
               </p>
               <p className="text-slate-400 mt-2">Password: password123</p>
             </div>
-          </div>
+          </div> */}
         </CardContent>
       </Card>
     </div>
