@@ -30,7 +30,7 @@ export async function POST(request: Request) {
                 data: { status: 'OCCUPIED' },
             }),
             // Link other tables to the primary table
-            ...otherTableIds.map((id) =>
+            ...otherTableIds.map((id: string) =>
                 prisma.table.update({
                     where: { id },
                     data: {

@@ -25,7 +25,7 @@ export async function POST(request: Request) {
         // Unmerge all tables
         await prisma.$transaction([
             // Set all merged tables to vacant and remove merge link
-            ...mergedTables.map((table) =>
+            ...mergedTables.map((table: { id: string }) =>
                 prisma.table.update({
                     where: { id: table.id },
                     data: {
