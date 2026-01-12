@@ -18,6 +18,8 @@ import {
   X,
   User,
   Tag,
+  Package,
+  Zap,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -72,6 +74,18 @@ const navItems: NavItem[] = [
     title: 'Tables',
     href: '/dashboard/tables',
     icon: TableProperties,
+    roles: ['OWNER', 'SUPERVISOR', 'FLOOR_STAFF'],
+  },
+  {
+    title: 'To-Go Orders',
+    href: '/dashboard/to-go',
+    icon: Package,
+    roles: ['OWNER', 'SUPERVISOR', 'FLOOR_STAFF'],
+  },
+  {
+    title: 'Quick Sale',
+    href: '/dashboard/quick-sale',
+    icon: Zap,
     roles: ['OWNER', 'SUPERVISOR', 'FLOOR_STAFF'],
   },
   {

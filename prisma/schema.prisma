@@ -42,6 +42,19 @@ enum PaymentMethod {
   CARD
 }
 
+enum OrderType {
+  DINE_IN      // Regular table orders
+  TO_GO        // Takeout/pickup orders
+  QUICK_SALE   // Counter/grab-and-go items
+}
+
+enum PrintStation {
+  KITCHEN      // Main kitchen prep
+  BAR          // Drinks, cocktails
+  DESSERT      // Ice cream, desserts
+  NO_PRINT     // Pre-packaged, no prep needed
+}
+
 // Models
 model User {
   id        String   @id @default(cuid())
@@ -83,18 +96,19 @@ model Allergy {
 }
 
 model MenuItem {
-  id            String   @id @default(cuid())
+  id            String       @id @default(cuid())
   name          String
   description   String?
   price         Float
   image         String?
-  available     Boolean  @default(true)
-  isSpecial     Boolean  @default(false)  // Chef's special
-  isPromotional Boolean  @default(false)  // On promotion/discount
-  isFeatured    Boolean  @default(false)  // Featured item for staff suggestions
-  promotionalPrice Float?                 // Discounted price if promotional
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  available     Boolean      @default(true)
+  isSpecial     Boolean      @default(false)  // Chef's special
+  isPromotional Boolean      @default(false)  // On promotion/discount
+  isFeatured    Boolean      @default(false)  // Featured item for staff suggestions
+  promotionalPrice Float?                     // Discounted price if promotional
+  printStation  PrintStation @default(KITCHEN) // Where to route this item
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
   
   // Relations
   categoryId  String
@@ -128,19 +142,24 @@ model Table {
 model Order {
   id            String       @id @default(cuid())
   orderNumber   Int          @default(autoincrement())
+  orderType     OrderType    @default(DINE_IN)  // Type of order
   status        OrderStatus  @default(CREATED)
   notes         String?
   totalAmount   Float        @default(0)
+  surcharges    Float        @default(0)  // Packaging fees, bag fees
   discountType  String?      // 'PERCENTAGE' or 'FIXED'
   discountValue Float?       // Discount amount or percentage
   discountReason String?     // Reason for discount
   discountAppliedBy String?  // User ID who applied discount
+  customerName  String?      // For To-Go order pickup
+  customerPhone String?      // For SMS notifications
+  pickupTime    DateTime?    // Estimated pickup time
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   
   // Relations
-  tableId     String
-  table       Table        @relation(fields: [tableId], references: [id])
+  tableId     String?      // Optional for To-Go and Quick Sale orders
+  table       Table?       @relation(fields: [tableId], references: [id])
   createdById String
   createdBy   User         @relation("CreatedBy", fields: [createdById], references: [id])
   items       OrderItem[]

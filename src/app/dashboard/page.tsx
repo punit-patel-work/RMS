@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   LayoutDashboard, UtensilsCrossed, TableProperties, ClipboardList, 
   TrendingUp, Users, DollarSign, Clock, CheckCircle, AlertTriangle,
-  Receipt, Timer, Utensils
+  Receipt, Timer, Utensils, Package, Zap
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -27,6 +27,8 @@ interface ActiveOrder {
   createdAt: Date;
   items: { id: string }[];
   table?: { number: number } | null;
+  orderType?: string;
+  customerName?: string | null;
 }
 
 export default async function DashboardPage() {
@@ -113,6 +115,20 @@ export default async function DashboardPage() {
             href: '/dashboard/orders',
             color: 'from-indigo-500 to-violet-600',
           },
+          {
+            title: 'To-Go Orders',
+            description: 'Create takeout orders',
+            icon: Package,
+            href: '/dashboard/to-go',
+            color: 'from-orange-500 to-amber-600',
+          },
+          {
+            title: 'Quick Sale',
+            description: 'Counter sales & grab-n-go',
+            icon: Zap,
+            href: '/dashboard/quick-sale',
+            color: 'from-blue-500 to-cyan-600',
+          },
         ]
       : []),
     ...(isKitchenStaff
@@ -161,7 +177,12 @@ export default async function DashboardPage() {
           <div className="flex-1">
             <p className="text-green-400 font-semibold">{readyItems.length} items ready to serve!</p>
             <p className="text-green-300/80 text-sm">
-              {readyItems.slice(0, 3).map((item: OrderItem) => `${item.menuItem.name} (Table ${item.order.table?.number})`).join(', ')}
+              {readyItems.slice(0, 3).map((item: OrderItem) => {
+                const orderDisplay = item.order.table?.number 
+                  ? `Table ${item.order.table.number}`
+                  : 'To-Go';
+                return `${item.menuItem.name} (${orderDisplay})`;
+              }).join(', ')}
               {readyItems.length > 3 && `, and ${readyItems.length - 3} more...`}
             </p>
           </div>
@@ -294,32 +315,43 @@ export default async function DashboardPage() {
             </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {activeOrders.slice(0, 6).map((order: ActiveOrder) => (
-              <Card key={order.id} className={`bg-slate-800/50 border-slate-700/50 ${
-                order.status === 'READY' ? 'ring-2 ring-green-500/50' : ''
-              }`}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-white text-lg">Table {order.table?.number}</CardTitle>
-                    <Badge className={
-                      order.status === 'READY' ? 'bg-green-500' :
-                      order.status === 'PREPARING' ? 'bg-orange-500' :
-                      order.status === 'SERVED' ? 'bg-blue-500' :
-                      'bg-slate-600'
-                    }>
-                      {order.status}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-slate-400 text-sm">{order.items.length} items</p>
-                  <div className="flex items-center gap-2 mt-2 text-slate-500 text-xs">
-                    <Timer className="w-3 h-3" />
-                    <span>{Math.round((Date.now() - new Date(order.createdAt).getTime()) / 60000)} min ago</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            {activeOrders.slice(0, 6).map((order: ActiveOrder) => {
+              // Determine order title based on type
+              const orderTitle = order.table?.number 
+                ? `Table ${order.table.number}`
+                : order.orderType === 'TO_GO' 
+                  ? `🥡 To-Go${order.customerName ? ` - ${order.customerName}` : ''}`
+                  : order.orderType === 'QUICK_SALE'
+                    ? '⚡ Quick Sale'
+                    : 'Order';
+              
+              return (
+                <Card key={order.id} className={`bg-slate-800/50 border-slate-700/50 ${
+                  order.status === 'READY' ? 'ring-2 ring-green-500/50' : ''
+                }`}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-white text-lg">{orderTitle}</CardTitle>
+                      <Badge className={
+                        order.status === 'READY' ? 'bg-green-500' :
+                        order.status === 'PREPARING' ? 'bg-orange-500' :
+                        order.status === 'SERVED' ? 'bg-blue-500' :
+                        'bg-slate-600'
+                      }>
+                        {order.status}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-slate-400 text-sm">{order.items.length} items</p>
+                    <div className="flex items-center gap-2 mt-2 text-slate-500 text-xs">
+                      <Timer className="w-3 h-3" />
+                      <span>{Math.round((Date.now() - new Date(order.createdAt).getTime()) / 60000)} min ago</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       )}

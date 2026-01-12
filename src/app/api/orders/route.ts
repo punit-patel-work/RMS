@@ -62,37 +62,65 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: validation.error.issues }, { status: 400 });
         }
 
-        const { tableId, notes, items } = validation.data;
+        const { tableId, orderType, notes, customerName, customerPhone, surcharges, pickupTime, items } = validation.data;
 
-        // Get menu items to calculate prices
+        // Get menu items to calculate prices and check print stations
         const menuItemIds = items.map((item) => item.menuItemId);
         const menuItems = await prisma.menuItem.findMany({
             where: { id: { in: menuItemIds } },
         });
 
-        const menuItemPrices: Map<string, number> = new Map(menuItems.map((item: { id: string; price: number }) => [item.id, item.price]));
+        const menuItemMap = new Map(menuItems.map((item) => [item.id, item]));
 
-        // Calculate total
+        // Calculate total (base prices + surcharges)
         const totalAmount = items.reduce((sum: number, item: { menuItemId: string; quantity: number }) => {
-            const price: number = menuItemPrices.get(item.menuItemId) || 0;
+            const menuItem = menuItemMap.get(item.menuItemId);
+            const price = menuItem?.price || 0;
             return sum + price * item.quantity;
-        }, 0);
+        }, 0) + (surcharges || 0);
+
+        // Check if any items need preparation (not NO_PRINT)
+        const needsPreparation = items.some((item) => {
+            const menuItem = menuItemMap.get(item.menuItemId) as { printStation?: string } | undefined;
+            return menuItem?.printStation !== 'NO_PRINT';
+        });
+
+        // Determine initial order status
+        // Quick Sale with all NO_PRINT items can go straight to READY
+        let initialStatus: 'CREATED' | 'READY' = 'CREATED';
+        if (orderType === 'QUICK_SALE' && !needsPreparation) {
+            initialStatus = 'READY';
+        }
 
         // Create order with items
         const order = await prisma.order.create({
             data: {
-                tableId,
+                tableId: tableId || undefined,
+                orderType: orderType || 'DINE_IN',
                 notes,
                 totalAmount,
+                surcharges: surcharges || 0,
+                customerName: customerName || null,
+                customerPhone: customerPhone || null,
+                pickupTime: pickupTime ? new Date(pickupTime) : null,
+                status: initialStatus,
                 createdById: session.user.id,
                 items: {
-                    create: items.map((item) => ({
-                        menuItemId: item.menuItemId,
-                        quantity: item.quantity,
-                        notes: item.notes,
-                        allergies: item.allergies || [],
-                        price: menuItemPrices.get(item.menuItemId) || 0,
-                    })),
+                    create: items.map((item) => {
+                        const menuItem = menuItemMap.get(item.menuItemId) as { price?: number; printStation?: string } | undefined;
+                        // Auto-mark NO_PRINT items as SERVED for Quick Sale
+                        const itemStatus = (orderType === 'QUICK_SALE' && menuItem?.printStation === 'NO_PRINT')
+                            ? 'SERVED'
+                            : 'PENDING';
+                        return {
+                            menuItemId: item.menuItemId,
+                            quantity: item.quantity,
+                            notes: item.notes,
+                            allergies: item.allergies || [],
+                            price: menuItem?.price || 0,
+                            status: itemStatus,
+                        };
+                    }),
                 },
             },
             include: {
@@ -105,11 +133,13 @@ export async function POST(request: Request) {
             },
         });
 
-        // Update table status to occupied
-        await prisma.table.update({
-            where: { id: tableId },
-            data: { status: 'OCCUPIED' },
-        });
+        // Update table status to occupied (only for DINE_IN orders)
+        if (tableId && orderType === 'DINE_IN') {
+            await prisma.table.update({
+                where: { id: tableId },
+                data: { status: 'OCCUPIED' },
+            });
+        }
 
         return NextResponse.json(order, { status: 201 });
     } catch (error) {

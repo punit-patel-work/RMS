@@ -29,12 +29,14 @@ interface ReportData {
   itemsSold: ItemSales[];
   paymentMethods: { method: string; count: number; amount: number }[];
   hourlyBreakdown: { hour: number; orders: number; revenue: number }[];
+  orderTypeBreakdown: { type: string; count: number; amount: number }[];
 }
 
 interface Order {
   id: string;
   totalAmount: number;
   status: string;
+  orderType?: string;
   discountType: string | null;
   discountValue: number | null;
   discountReason: string | null;
@@ -78,6 +80,7 @@ export default function AnalyticsPage() {
     itemsSold: [],
     paymentMethods: [],
     hourlyBreakdown: [],
+    orderTypeBreakdown: [],
   });
 
   const getDateRange = useCallback(() => {
@@ -192,6 +195,19 @@ export default function AnalyticsPage() {
       });
       const hourlyBreakdown = Object.values(hourlyMap).filter((h) => h.orders > 0);
 
+      // Calculate order type breakdown
+      const orderTypeMap: Record<string, { type: string; count: number; amount: number }> = {};
+      filteredOrders.forEach((order) => {
+        const type = order.orderType || 'DINE_IN';
+        const displayType = type === 'TO_GO' ? 'To-Go' : type === 'QUICK_SALE' ? 'Quick Sale' : 'Dine-In';
+        if (!orderTypeMap[type]) {
+          orderTypeMap[type] = { type: displayType, count: 0, amount: 0 };
+        }
+        orderTypeMap[type].count++;
+        orderTypeMap[type].amount += order.payment?.amount || 0;
+      });
+      const orderTypeBreakdown = Object.values(orderTypeMap);
+
       setReport({
         dateRange: range,
         totalSales,
@@ -201,6 +217,7 @@ export default function AnalyticsPage() {
         itemsSold,
         paymentMethods,
         hourlyBreakdown,
+        orderTypeBreakdown,
       });
     } catch (error) {
       toast.error('Failed to load analytics');
@@ -643,6 +660,53 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Order Type Breakdown */}
+      {report.orderTypeBreakdown.length > 0 && (
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center gap-2">
+              📊 Sales by Order Type
+            </CardTitle>
+            <CardDescription className="text-slate-400">Breakdown by Dine-In, To-Go, and Quick Sale</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {report.orderTypeBreakdown.map((typeData) => {
+                const color = typeData.type === 'To-Go' ? 'orange' : 
+                              typeData.type === 'Quick Sale' ? 'cyan' : 'violet';
+                const icon = typeData.type === 'To-Go' ? '📦' : 
+                             typeData.type === 'Quick Sale' ? '⚡' : '🍽️';
+                return (
+                  <div key={typeData.type} className={`bg-${color}-500/10 border border-${color}-500/30 rounded-lg p-4`}
+                       style={{ 
+                         backgroundColor: color === 'orange' ? 'rgba(249,115,22,0.1)' : 
+                                         color === 'cyan' ? 'rgba(6,182,212,0.1)' : 
+                                         'rgba(139,92,246,0.1)',
+                         borderColor: color === 'orange' ? 'rgba(249,115,22,0.3)' : 
+                                     color === 'cyan' ? 'rgba(6,182,212,0.3)' : 
+                                     'rgba(139,92,246,0.3)'
+                       }}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-lg font-semibold text-white">{icon} {typeData.type}</span>
+                      <Badge className={`${
+                        color === 'orange' ? 'bg-orange-500' : 
+                        color === 'cyan' ? 'bg-cyan-500' : 'bg-violet-500'
+                      }`}>
+                        {typeData.count} orders
+                      </Badge>
+                    </div>
+                    <div className="text-2xl font-bold text-white">${typeData.amount.toFixed(2)}</div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {report.totalSales > 0 ? ((typeData.amount / report.totalSales) * 100).toFixed(1) : 0}% of total
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Items Sold Table */}
       <Card className="bg-slate-800/50 border-slate-700">

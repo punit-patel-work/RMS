@@ -52,20 +52,23 @@ export async function POST(request: Request) {
             data: { status: 'PAID' },
         });
 
-        // Update table status to VACANT (ready for new guests)
-        await prisma.table.update({
-            where: { id: order.tableId },
-            data: { status: 'VACANT' },
-        });
+        // Only update table status if order has a table (not Quick Sale or To-Go)
+        if (order.tableId) {
+            // Update table status to VACANT (ready for new guests)
+            await prisma.table.update({
+                where: { id: order.tableId },
+                data: { status: 'VACANT' },
+            });
 
-        // Unmerge any tables if this was a merged table
-        await prisma.table.updateMany({
-            where: { mergedWithId: order.tableId },
-            data: {
-                mergedWithId: null,
-                status: 'VACANT',
-            },
-        });
+            // Unmerge any tables if this was a merged table
+            await prisma.table.updateMany({
+                where: { mergedWithId: order.tableId },
+                data: {
+                    mergedWithId: null,
+                    status: 'VACANT',
+                },
+            });
+        }
 
         return NextResponse.json(payment, { status: 201 });
     } catch (error) {

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Loader2, Clock, AlertTriangle, ChefHat, Check } from 'lucide-react';
+import { Loader2, Clock, AlertTriangle, ChefHat, Check, Package, User } from 'lucide-react';
 
 interface OrderItem {
   id: string;
@@ -23,12 +23,14 @@ interface OrderItem {
 interface Order {
   id: string;
   orderNumber: number;
+  orderType: 'DINE_IN' | 'TO_GO' | 'QUICK_SALE';
   status: string;
   notes: string | null;
+  customerName: string | null;
   createdAt: string;
   table: {
     number: number;
-  };
+  } | null;
   items: OrderItem[];
 }
 
@@ -217,11 +219,23 @@ export default function KitchenPage() {
           {orders.map((order) => {
             const allReady = order.items.every((item: { status: string }) => item.status === 'READY');
             return (
-              <Card key={order.id} className={`bg-slate-800/50 border-slate-700 ${order.status === 'CREATED' ? 'border-l-4 border-l-orange-500' : ''} ${allReady ? 'border-l-4 border-l-green-500' : ''}`}>
+              <Card key={order.id} className={`bg-slate-800/50 border-slate-700 ${order.status === 'CREATED' ? 'border-l-4 border-l-orange-500' : ''} ${allReady ? 'border-l-4 border-l-green-500' : ''} ${order.orderType === 'TO_GO' ? 'border-t-2 border-t-purple-500' : ''}`}>
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-xl text-white flex items-center gap-2">
-                      Table {order.table.number}
+                      {order.orderType === 'TO_GO' ? (
+                        <>
+                          <span className="text-2xl">🥡</span>
+                          <span className="text-purple-400">To-Go</span>
+                        </>
+                      ) : order.table ? (
+                        <>
+                          <span className="text-2xl">🍽️</span>
+                          Table {order.table.number}
+                        </>
+                      ) : (
+                        <span>Order</span>
+                      )}
                       <Badge className="ml-2 bg-slate-700 text-slate-300">#{order.orderNumber}</Badge>
                     </CardTitle>
                     <div className={`flex items-center gap-1 text-sm ${getTimeColor(order.createdAt)}`}>
@@ -229,6 +243,20 @@ export default function KitchenPage() {
                       {getTimeSince(order.createdAt)}
                     </div>
                   </div>
+                  {/* Customer name for To-Go orders */}
+                  {order.orderType === 'TO_GO' && order.customerName && (
+                    <div className="flex items-center gap-2 text-purple-300 mt-1">
+                      <User className="w-4 h-4" />
+                      <span className="font-medium">{order.customerName}</span>
+                    </div>
+                  )}
+                  {/* Item count for To-Go orders */}
+                  {order.orderType === 'TO_GO' && (
+                    <div className="flex items-center gap-2 text-slate-400 text-sm mt-1">
+                      <Package className="w-4 h-4" />
+                      <span>{order.items.reduce((sum, item) => sum + item.quantity, 0)} items total - Pack for takeout</span>
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {/* Order notes */}

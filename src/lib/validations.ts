@@ -74,15 +74,29 @@ export const mergeTablesSchema = z.object({
 
 // Order schemas
 export const createOrderSchema = z.object({
-    tableId: z.string().min(1, 'Table is required'),
+    tableId: z.string().optional().nullable(), // Optional for To-Go and Quick Sale orders
+    orderType: z.enum(['DINE_IN', 'TO_GO', 'QUICK_SALE']).default('DINE_IN'),
     notes: z.string().optional(),
+    customerName: z.string().optional(), // For To-Go order pickup
+    customerPhone: z.string().optional(), // For notifications
+    surcharges: z.number().min(0).default(0), // Packaging fees
+    pickupTime: z.string().optional(), // ISO datetime string
     items: z.array(z.object({
         menuItemId: z.string().min(1, 'Menu item is required'),
         quantity: z.number().int().positive('Quantity must be positive'),
         notes: z.string().optional(),
         allergies: z.array(z.string()).optional(),
     })).min(1, 'At least one item is required'),
-});
+}).refine(
+    (data) => {
+        // Dine-in orders require a tableId
+        if (data.orderType === 'DINE_IN' && !data.tableId) {
+            return false;
+        }
+        return true;
+    },
+    { message: 'Table is required for dine-in orders', path: ['tableId'] }
+);
 
 export const addOrderItemSchema = z.object({
     menuItemId: z.string().min(1, 'Menu item is required'),
