@@ -1,0 +1,35 @@
+
+> rms-app@0.1.0 build
+> next build
+
+  Γû▓ Next.js 14.2.24
+  - Environments: .env
+
+   Creating an optimized production build ...
+Failed to compile.
+
+src\app\layout.tsx
+`next/font` error:
+Unknown font `Geist`
+
+src\app\layout.tsx
+`next/font` error:
+Unknown font `Geist Mono`
+
+./src/app/dashboard/analytics/page.tsx
+Module not found: Can't resolve 'sonner'
+
+https://nextjs.org/docs/messages/module-not-found
+
+./src/app/dashboard/analytics/page.tsx
+Module not found: Can't resolve 'lucide-react'
+
+https://nextjs.org/docs/messages/module-not-found
+
+./src/app/dashboard/kitchen/page.tsx
+Module not found: Can't resolve 'sonner'
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+> Build failed because of webpack errors
