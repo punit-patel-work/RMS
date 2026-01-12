@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:strict": "tsc --noEmit --strict",
     "build:vercel": "npm run typecheck && npm run build",
+    "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
