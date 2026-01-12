@@ -108,7 +108,7 @@ export default function AnalyticsPage() {
       });
       
       const count = ongoing.length;
-      const value = ongoing.reduce((sum, order) => sum + order.totalAmount, 0);
+      const value = ongoing.reduce((sum: number, order: { totalAmount: number }) => sum + order.totalAmount, 0);
       setOngoingOrders({ count, value });
     } catch {
       // Silent fail for ongoing updates
@@ -136,9 +136,9 @@ export default function AnalyticsPage() {
       });
 
       // Calculate totals
-      const totalSales = filteredOrders.reduce((sum, order) => sum + (order.payment?.amount || 0), 0);
+      const totalSales = filteredOrders.reduce((sum: number, order: { payment?: { amount: number } }) => sum + (order.payment?.amount || 0), 0);
       const totalOrders = filteredOrders.length;
-      const totalDiscounts = filteredOrders.reduce((sum, order) => {
+      const totalDiscounts = filteredOrders.reduce((sum: number, order: { discountType: string | null; discountValue: number | null; totalAmount: number }) => {
         if (order.discountType === 'FIXED') return sum + (order.discountValue || 0);
         if (order.discountType === 'PERCENTAGE') {
           const originalTotal = order.totalAmount / (1 - (order.discountValue || 0) / 100);

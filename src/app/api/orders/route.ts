@@ -73,7 +73,7 @@ export async function POST(request: Request) {
         const menuItemPrices = new Map(menuItems.map((item) => [item.id, item.price]));
 
         // Calculate total
-        const totalAmount = items.reduce((sum, item) => {
+        const totalAmount = items.reduce((sum: number, item: { menuItemId: string; quantity: number }) => {
             const price = menuItemPrices.get(item.menuItemId) || 0;
             return sum + price * item.quantity;
         }, 0);

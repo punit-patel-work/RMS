@@ -387,7 +387,7 @@ export default function TablesPage() {
 
     setCartItems((prev) => [...prev, ...bundleItems]);
     
-    const savings = promo.menuItems.reduce((sum, i) => sum + i.price, 0) - promo.bundlePrice;
+    const savings = promo.menuItems.reduce((sum: number, i: { price: number }) => sum + i.price, 0) - promo.bundlePrice;
     toast.success(`${promo.name} added! You save $${savings.toFixed(2)}`);
   };
 
@@ -422,7 +422,7 @@ export default function TablesPage() {
   const calculateOrderTotals = (order: Order | null | undefined) => {
     if (!order) return { subtotal: 0, discount: 0, tax: 0, total: 0 };
     
-    const subtotal = order.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const subtotal = order.items.reduce((sum: number, item: { price: number; quantity: number }) => sum + item.price * item.quantity, 0);
     let discount = 0;
     
     if (order.discountType && order.discountValue) {
@@ -552,7 +552,7 @@ export default function TablesPage() {
         if (item.bundleId && !processedBundles.has(item.bundleId)) {
           // Find all items in this bundle and calculate regular price
           const bundleItems = itemsToSubmit.filter((i) => i.bundleId === item.bundleId);
-          const regularTotal = bundleItems.reduce((sum, i) => sum + i.menuItem.price * i.quantity, 0);
+          const regularTotal = bundleItems.reduce((sum: number, i: { menuItem: { price: number }; quantity: number }) => sum + i.menuItem.price * i.quantity, 0);
           
           // Find the bundle price (stored on first item)
           const bundleFirstItem = bundleItems.find((i) => i.bundlePrice !== undefined);
@@ -833,7 +833,7 @@ export default function TablesPage() {
                 </div>
                 <CardDescription className="text-slate-400">
                   <Users className="w-4 h-4 inline mr-1" />
-                  {table.capacity + table.mergedTables.reduce((sum, t) => sum + t.capacity, 0)} seats
+                  {table.capacity + table.mergedTables.reduce((sum: number, t: { capacity: number }) => sum + t.capacity, 0)} seats
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -1032,7 +1032,7 @@ export default function TablesPage() {
                             <>
                               {promo.menuItems.length > 0 && (
                                 <span className="text-slate-500 line-through text-sm">
-                                  ${promo.menuItems.reduce((sum, i) => sum + i.price, 0).toFixed(2)}
+                                  ${promo.menuItems.reduce((sum: number, i: { price: number }) => sum + i.price, 0).toFixed(2)}
                                 </span>
                               )}
                               <span className="text-orange-400 font-bold text-2xl">${promo.bundlePrice.toFixed(2)}</span>
