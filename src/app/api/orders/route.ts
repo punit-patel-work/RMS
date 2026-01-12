@@ -70,7 +70,7 @@ export async function POST(request: Request) {
             where: { id: { in: menuItemIds } },
         });
 
-        const menuItemPrices = new Map(menuItems.map((item) => [item.id, item.price]));
+        const menuItemPrices = new Map(menuItems.map((item: { id: string; price: number }) => [item.id, item.price]));
 
         // Calculate total
         const totalAmount = items.reduce((sum: number, item: { menuItemId: string; quantity: number }) => {

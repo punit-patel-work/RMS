@@ -215,7 +215,7 @@ export default function KitchenPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {orders.map((order) => {
-            const allReady = order.items.every((item) => item.status === 'READY');
+            const allReady = order.items.every((item: { status: string }) => item.status === 'READY');
             return (
               <Card key={order.id} className={`bg-slate-800/50 border-slate-700 ${order.status === 'CREATED' ? 'border-l-4 border-l-orange-500' : ''} ${allReady ? 'border-l-4 border-l-green-500' : ''}`}>
                 <CardHeader className="pb-2">
