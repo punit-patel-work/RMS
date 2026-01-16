@@ -37,7 +37,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Order already paid' }, { status: 400 });
         }
 
-        // Create payment and update order status
+        // Create payment
         const payment = await prisma.payment.create({
             data: {
                 orderId,
@@ -46,11 +46,15 @@ export async function POST(request: Request) {
             },
         });
 
-        // Update order status to PAID
-        await prisma.order.update({
-            where: { id: orderId },
-            data: { status: 'PAID' },
-        });
+        // Update order status only if it's NOT a To-Go order
+        // To-Go orders must follow the kitchen workflow (CREATED -> PREPARING -> READY -> SERVED)
+        // DINE_IN and QUICK_SALE can be marked PAID to clear the table/queue
+        if (order.orderType !== 'TO_GO') {
+            await prisma.order.update({
+                where: { id: orderId },
+                data: { status: 'PAID' },
+            });
+        }
 
         // Only update table status if order has a table (not Quick Sale or To-Go)
         if (order.tableId) {

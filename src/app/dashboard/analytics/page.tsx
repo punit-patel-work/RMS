@@ -9,8 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { 
   Loader2, DollarSign, ShoppingCart, TrendingUp, Mail, Calendar,
-  Download, FileText, FileSpreadsheet, Percent, Clock, RefreshCw
+  Download, FileText, FileSpreadsheet, Percent, Clock, RefreshCw, Filter, BarChart3
 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface ItemSales {
   name: string;
@@ -70,6 +71,9 @@ export default function AnalyticsPage() {
   // Live ongoing orders (today only)
   const [ongoingOrders, setOngoingOrders] = useState({ count: 0, value: 0 });
   
+  // Payment method filter
+  const [paymentFilter, setPaymentFilter] = useState<string>('all');
+  
   // Report data
   const [report, setReport] = useState<ReportData>({
     dateRange: { start: '', end: '' },
@@ -105,7 +109,8 @@ export default function AnalyticsPage() {
       
       // Filter for today's ongoing (not paid) orders
       const ongoing = orders.filter((order) => {
-        if (order.status === 'PAID' || order.status === 'CANCELLED') return false;
+        // Exclude PAID, CANCELLED, or any order that already has a payment (e.g. Paid To-Go)
+        if (order.status === 'PAID' || order.status === 'CANCELLED' || order.payment) return false;
         const orderDate = new Date(order.createdAt);
         return orderDate >= today;
       });
@@ -131,11 +136,19 @@ export default function AnalyticsPage() {
       const endOfDay = new Date(range.end);
       endOfDay.setHours(23, 59, 59, 999);
 
-      // Filter paid orders in date range
+      // Filter paid orders in date range (include SERVED To-Go orders that have payment)
+      // Also apply payment method filter if set
       const filteredOrders = orders.filter((order) => {
-        if (order.status !== 'PAID' || !order.payment) return false;
+        if ((order.status !== 'PAID' && order.status !== 'SERVED') || !order.payment) return false;
         const paymentDate = new Date(order.payment.createdAt);
-        return paymentDate >= startOfDay && paymentDate <= endOfDay;
+        const inDateRange = paymentDate >= startOfDay && paymentDate <= endOfDay;
+        
+        // Apply payment method filter
+        if (paymentFilter !== 'all' && order.payment.method !== paymentFilter) {
+          return false;
+        }
+        
+        return inDateRange;
       });
 
       // Calculate totals
@@ -224,7 +237,7 @@ export default function AnalyticsPage() {
     } finally {
       setLoading(false);
     }
-  }, [getDateRange]);
+  }, [getDateRange, paymentFilter]);
 
   useEffect(() => {
     fetchReport();
@@ -599,6 +612,24 @@ export default function AnalyticsPage() {
             </div>
           )}
 
+          {/* Payment Method Filter */}
+          <div className="flex items-center gap-4 pt-2 border-t border-slate-700">
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-slate-400" />
+              <Label className="text-slate-400">Payment Filter:</Label>
+            </div>
+            <Select value={paymentFilter} onValueChange={setPaymentFilter}>
+              <SelectTrigger className="w-40 bg-slate-700 border-slate-600 text-white">
+                <SelectValue placeholder="All Payments" />
+              </SelectTrigger>
+              <SelectContent className="bg-slate-800 border-slate-700">
+                <SelectItem value="all" className="text-white hover:bg-slate-700">All Payments</SelectItem>
+                <SelectItem value="CASH" className="text-green-400 hover:bg-slate-700">💵 Cash Only</SelectItem>
+                <SelectItem value="CARD" className="text-blue-400 hover:bg-slate-700">💳 Card Only</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
           <Button onClick={fetchReport} disabled={loading} className="bg-orange-500 hover:bg-orange-600">
             {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
             Generate Report
@@ -806,16 +837,28 @@ export default function AnalyticsPage() {
             {report.hourlyBreakdown.length === 0 ? (
               <p className="text-slate-500 text-center py-4">No hourly data</p>
             ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {report.hourlyBreakdown.map((h) => (
-                  <div key={h.hour} className="flex items-center justify-between p-2 bg-slate-700/30 rounded">
-                    <span className="text-slate-400">{h.hour.toString().padStart(2, '0')}:00</span>
-                    <div className="flex items-center gap-4">
-                      <span className="text-slate-400">{h.orders} orders</span>
-                      <span className="text-green-400 font-medium">${h.revenue.toFixed(2)}</span>
+              <div className="space-y-3">
+                {report.hourlyBreakdown.map((h) => {
+                  const maxRevenue = Math.max(...report.hourlyBreakdown.map(x => x.revenue));
+                  const barWidth = maxRevenue > 0 ? (h.revenue / maxRevenue) * 100 : 0;
+                  return (
+                    <div key={h.hour} className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-400 font-medium">{h.hour.toString().padStart(2, '0')}:00</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-slate-500">{h.orders} orders</span>
+                          <span className="text-green-400 font-bold">${h.revenue.toFixed(2)}</span>
+                        </div>
+                      </div>
+                      <div className="h-3 bg-slate-700/50 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-green-500 to-emerald-400 rounded-full transition-all duration-500"
+                          style={{ width: `${barWidth}%` }}
+                        />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>

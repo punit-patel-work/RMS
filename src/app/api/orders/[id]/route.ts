@@ -134,9 +134,17 @@ export async function POST(
 
         if (order) {
             const newTotal = order.items.reduce((sum: number, item: { price: number; quantity: number }) => sum + item.price * item.quantity, 0);
+
+            // If the added item needs preparation (not NO_PRINT), reset order status to PREPARING
+            // This ensures it shows up in Kitchen Display even if order was previously SERVED
+            const shouldResetStatus = menuItem.printStation !== 'NO_PRINT';
+
             await prisma.order.update({
                 where: { id },
-                data: { totalAmount: newTotal },
+                data: {
+                    totalAmount: newTotal,
+                    ...(shouldResetStatus ? { status: 'PREPARING' } : {})
+                },
             });
         }
 

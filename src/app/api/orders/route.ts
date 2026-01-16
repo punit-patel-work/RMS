@@ -33,7 +33,11 @@ export async function GET(request: Request) {
                 },
                 items: {
                     include: {
-                        menuItem: true,
+                        menuItem: {
+                            include: {
+                                category: true,
+                            },
+                        },
                     },
                 },
                 payment: true,

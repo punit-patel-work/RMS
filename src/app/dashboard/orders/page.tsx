@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Loader2, Clock, ClipboardList, CheckCircle2, Utensils, Bell, Package, Zap, TableProperties } from 'lucide-react';
+import { Loader2, Clock, ClipboardList, CheckCircle2, Utensils, Bell, Package, Zap, TableProperties, Banknote, CreditCard } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 interface Order {
   id: string;
@@ -23,6 +24,7 @@ interface Order {
   createdBy: {
     name: string;
   };
+
   items: {
     id: string;
     quantity: number;
@@ -32,12 +34,22 @@ interface Order {
       name: string;
     };
   }[];
+  payment: {
+    amount: number;
+    method: string;
+  } | null;
 }
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  
+  // Payment dialog state for To-Go orders
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [selectedOrderForPayment, setSelectedOrderForPayment] = useState<Order | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'CARD'>('CASH');
+  const [processingPayment, setProcessingPayment] = useState(false);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -90,7 +102,10 @@ export default function OrdersPage() {
   );
   
   const paidOrders = useMemo(() => 
-    filteredOrders.filter((o) => o.status === 'PAID').slice(0, 20),
+    filteredOrders.filter((o) => 
+      o.status === 'PAID' || 
+      (o.status === 'SERVED' && o.orderType === 'TO_GO' && o.payment)
+    ).slice(0, 20),
     [filteredOrders]
   );
 
@@ -102,18 +117,77 @@ export default function OrdersPage() {
     quickSale: orders.filter(o => o.orderType === 'QUICK_SALE').length,
   }), [orders]);
 
-  const markAsServed = async (orderId: string) => {
+  const markAsServed = async (order: Order) => {
+    // For To-Go orders that aren't paid, show payment dialog
+    if (order.orderType === 'TO_GO' && !order.payment) {
+      setSelectedOrderForPayment(order);
+      setPaymentMethod('CASH');
+      setPaymentDialogOpen(true);
+      return;
+    }
+
     try {
-      const res = await fetch(`/api/orders/${orderId}`, {
+      const res = await fetch(`/api/orders/${order.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'SERVED' }),
       });
       if (!res.ok) throw new Error('Failed to update order');
-      toast.success('Order marked as served');
+      toast.success(
+        order.orderType === 'TO_GO' 
+          ? 'Order marked as Picked Up' 
+          : 'Order marked as Served'
+      );
       fetchOrders();
     } catch (error) {
       toast.error('Failed to update order');
+    }
+  };
+
+  // Process payment for To-Go orders
+  const processPayment = async () => {
+    if (!selectedOrderForPayment) return;
+    
+    setProcessingPayment(true);
+    try {
+      // Process payment
+      const paymentRes = await fetch('/api/payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: selectedOrderForPayment.id,
+          amount: selectedOrderForPayment.totalAmount,
+          method: paymentMethod,
+        }),
+      });
+      
+      if (!paymentRes.ok) {
+        throw new Error('Payment failed');
+      }
+      
+      // Mark as served/picked up
+      const statusRes = await fetch(`/api/orders/${selectedOrderForPayment.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'SERVED' }),
+      });
+      
+      if (!statusRes.ok) throw new Error('Failed to update status');
+      
+      toast.success(
+        <div className="flex flex-col">
+          <span className="font-bold">Order #{selectedOrderForPayment.orderNumber} Complete!</span>
+          <span className="text-sm">${selectedOrderForPayment.totalAmount.toFixed(2)} paid via {paymentMethod}</span>
+        </div>
+      );
+      
+      setPaymentDialogOpen(false);
+      setSelectedOrderForPayment(null);
+      fetchOrders();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Payment failed');
+    } finally {
+      setProcessingPayment(false);
     }
   };
 
@@ -309,7 +383,7 @@ export default function OrdersPage() {
                       <span className="text-lg font-bold text-emerald-400">${order.totalAmount.toFixed(2)}</span>
                     </div>
                     <Button 
-                      onClick={() => markAsServed(order.id)}
+                      onClick={() => markAsServed(order)}
                       className="w-full bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600"
                     >
                       <Utensils className="w-4 h-4 mr-2" />
@@ -433,6 +507,84 @@ export default function OrdersPage() {
           </div>
         )}
       </div>
+
+      {/* Payment Dialog for To-Go Orders */}
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent className="bg-slate-800 border-slate-700 max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white text-xl flex items-center gap-2">
+              <Package className="w-5 h-5 text-orange-400" />
+              Collect Payment
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Order #{selectedOrderForPayment?.orderNumber} - {selectedOrderForPayment?.customerName || 'To-Go'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 pt-4">
+            {/* Order Total */}
+            <div className="bg-slate-700/50 rounded-lg p-4 text-center">
+              <p className="text-slate-400 text-sm">Total Amount</p>
+              <p className="text-4xl font-bold text-green-400">
+                ${selectedOrderForPayment?.totalAmount.toFixed(2)}
+              </p>
+            </div>
+            
+            {/* Payment Method Selection */}
+            <div className="space-y-3">
+              <p className="text-white font-medium">Payment Method</p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setPaymentMethod('CASH')}
+                  className={`p-4 rounded-lg border-2 flex flex-col items-center gap-2 transition-all ${
+                    paymentMethod === 'CASH'
+                      ? 'border-green-500 bg-green-500/20 text-green-400'
+                      : 'border-slate-600 bg-slate-700/50 text-slate-300 hover:border-slate-500'
+                  }`}
+                >
+                  <Banknote className="w-8 h-8" />
+                  <span className="font-semibold">Cash</span>
+                </button>
+                <button
+                  onClick={() => setPaymentMethod('CARD')}
+                  className={`p-4 rounded-lg border-2 flex flex-col items-center gap-2 transition-all ${
+                    paymentMethod === 'CARD'
+                      ? 'border-blue-500 bg-blue-500/20 text-blue-400'
+                      : 'border-slate-600 bg-slate-700/50 text-slate-300 hover:border-slate-500'
+                  }`}
+                >
+                  <CreditCard className="w-8 h-8" />
+                  <span className="font-semibold">Card</span>
+                </button>
+              </div>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setPaymentDialogOpen(false)}
+                className="flex-1 border-slate-600"
+                disabled={processingPayment}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={processPayment}
+                className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                disabled={processingPayment}
+              >
+                {processingPayment ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                )}
+                Complete Payment
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
